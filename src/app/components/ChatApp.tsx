@@ -239,6 +239,19 @@ export default function ChatApp() {
     [authEmail, authPassword]
   );
 
+  const handleLogout = useCallback(() => {
+    setConversations([]);
+    setActiveConversationId(null);
+    setUserEmail(null);
+    setAuthMode(null);
+    setAuthEmail('');
+    setAuthPassword('');
+    setAuthError('');
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(ACTIVE_ID_KEY);
+    localStorage.removeItem(USER_EMAIL_KEY);
+  }, []);
+
   return (
     <div className="flex h-screen bg-[#1f1f1f] text-white">
       {/* Sidebar */}
@@ -250,6 +263,7 @@ export default function ChatApp() {
           onNewConversation={handleNewConversation}
           onDeleteConversation={handleDeleteConversation}
           userEmail={userEmail}
+          onLogout={handleLogout}
         />
       )}
 

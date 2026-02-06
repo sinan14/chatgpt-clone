@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { Conversation } from '../types/chat';
 
 interface SidebarProps {
@@ -9,6 +10,7 @@ interface SidebarProps {
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
   userEmail: string | null;
+  onLogout: () => void;
 }
 
 export default function Sidebar({
@@ -18,8 +20,23 @@ export default function Sidebar({
   onNewConversation,
   onDeleteConversation,
   userEmail,
+  onLogout,
 }: SidebarProps) {
   const displayName = userEmail ? userEmail.split('@')[0] : 'Guest';
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <div className="w-64 bg-[#111111] text-white flex flex-col h-screen border-r border-[#1f1f1f]">
       {/* Header */}
@@ -83,13 +100,121 @@ export default function Sidebar({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-[#1f1f1f]">
-        <div className="flex items-center gap-3 text-sm">
-          <div className="w-8 h-8 bg-[#1f1f1f] rounded-full flex items-center justify-center">
-            👤
+      <div className="p-4 border-t border-[#1f1f1f] relative" ref={menuRef}>
+        {isUserMenuOpen && (
+          <div className="absolute bottom-16 left-4 w-56 bg-[#1b1b1b] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden">
+            <div className="px-3 py-2 text-xs uppercase tracking-wider text-gray-500">
+              Account
+            </div>
+            <div className="px-3 py-2 flex items-center gap-2 text-sm text-gray-200 border-b border-[#262626]">
+              <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M4 6.5C4 5.12 5.12 4 6.5 4h11c1.38 0 2.5 1.12 2.5 2.5v11c0 1.38-1.12 2.5-2.5 2.5h-11C5.12 20 4 18.88 4 17.5v-11Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M7.5 8.5h9M7.5 12h9M7.5 15.5h6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="truncate">{userEmail ?? 'guest@chatgpt.local'}</span>
+            </div>
+            <button
+              type="button"
+              className="w-full px-3 py-2 flex items-center gap-2 text-sm text-gray-200 hover:bg-[#222222]"
+              onClick={() => setIsUserMenuOpen(false)}
+            >
+              <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M12 12l8-4.5M12 12L4 7.5M12 12v9"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>Settings</span>
+            </button>
+            <button
+              type="button"
+              className="w-full px-3 py-2 flex items-center gap-2 text-sm text-gray-200 hover:bg-[#222222]"
+              onClick={() => setIsUserMenuOpen(false)}
+            >
+              <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 20a8 8 0 1 0-8-8 8 8 0 0 0 8 8Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M9.5 9a2.5 2.5 0 1 1 4.5 1.5c-.7.7-1.5 1-1.5 2.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M12 17h.01"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span>Help</span>
+            </button>
+            <button
+              type="button"
+              className="w-full px-3 py-2 flex items-center gap-2 text-sm text-red-300 hover:bg-[#2a1d1d]"
+              onClick={() => {
+                setIsUserMenuOpen(false);
+                onLogout();
+              }}
+            >
+              <svg className="w-4 h-4 text-red-300" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M15 4h2a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-2"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M10 17l5-5-5-5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M15 12H4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span>Logout</span>
+            </button>
           </div>
-          <span>{displayName}</span>
-        </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setIsUserMenuOpen((open) => !open)}
+          className="w-full flex items-center gap-3 text-sm hover:bg-[#1b1b1b] rounded-lg px-2 py-2"
+          aria-haspopup="menu"
+          aria-expanded={isUserMenuOpen}
+        >
+          <div className="w-8 h-8 bg-[#1f1f1f] rounded-full flex items-center justify-center text-sm">
+            {displayName.slice(0, 1).toUpperCase()}
+          </div>
+          <span className="truncate">{displayName}</span>
+        </button>
       </div>
     </div>
   );
