@@ -6,9 +6,10 @@ import MessageBubble from './MessageBubble';
 
 interface ChatWindowProps {
   messages: Message[];
+  isLoading?: boolean;
 }
 
-export default function ChatWindow({ messages }: ChatWindowProps) {
+export default function ChatWindow({ messages, isLoading = false }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -38,6 +39,11 @@ export default function ChatWindow({ messages }: ChatWindowProps) {
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
+            {isLoading && (
+              <div className="px-4 sm:px-8 lg:px-24 mb-6">
+                <div className="text-sm text-gray-400 italic">Thinking...</div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </>
         )}

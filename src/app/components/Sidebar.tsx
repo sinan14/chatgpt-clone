@@ -8,6 +8,7 @@ interface SidebarProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
+  userEmail: string | null;
 }
 
 export default function Sidebar({
@@ -16,7 +17,9 @@ export default function Sidebar({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  userEmail,
 }: SidebarProps) {
+  const displayName = userEmail ? userEmail.split('@')[0] : 'Guest';
   return (
     <div className="w-64 bg-gray-900 text-white flex flex-col h-screen">
       {/* Header */}
@@ -52,6 +55,7 @@ export default function Sidebar({
                     e.stopPropagation();
                     onDeleteConversation(conversation.id);
                   }}
+                  aria-label="Delete conversation"
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-red-600 hover:bg-red-700 p-1 rounded transition-all"
                   title="Delete conversation"
                 >
@@ -81,7 +85,7 @@ export default function Sidebar({
           <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center">
             👤
           </div>
-          <span>User Profile</span>
+          <span>{displayName}</span>
         </div>
       </div>
     </div>

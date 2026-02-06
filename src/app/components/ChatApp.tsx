@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Conversation, Message } from '../types/chat';
 import Sidebar from './Sidebar';
 import ChatWindow from './ChatWindow';
@@ -17,23 +17,111 @@ const dummyResponses = [
   "I see what you're asking. The answer involves several key points.",
 ];
 
+const STORAGE_KEY = 'chatgpt_clone_conversations_v1';
+const ACTIVE_ID_KEY = 'chatgpt_clone_active_id_v1';
+const USER_EMAIL_KEY = 'chatgpt_clone_user_email_v1';
+
+function generateId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 9);
+}
+
+function serializeConversations(conversations: Conversation[]) {
+  return conversations.map((c) => ({
+    ...c,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+    messages: c.messages.map((m) => ({
+      ...m,
+      timestamp: m.timestamp.toISOString(),
+    })),
+  }));
+}
+
+function deserializeConversations(raw: unknown): Conversation[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((c) => c && typeof c === 'object')
+    .map((c: any) => ({
+      id: String(c.id),
+      title: String(c.title ?? 'Conversation'),
+      createdAt: new Date(c.createdAt ?? Date.now()),
+      updatedAt: new Date(c.updatedAt ?? Date.now()),
+      messages: Array.isArray(c.messages)
+        ? c.messages.map((m: any) => ({
+            id: String(m.id),
+            text: String(m.text ?? ''),
+            sender: m.sender === 'assistant' ? 'assistant' : 'user',
+            timestamp: new Date(m.timestamp ?? Date.now()),
+          }))
+        : [],
+    }));
+}
+
 export default function ChatApp() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     null
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
   );
 
-  const generateId = () => Math.random().toString(36).substring(2, 9);
-
   const generateTitle = (firstMessage: string) => {
     const maxLength = 30;
     return firstMessage.substring(0, maxLength) + (firstMessage.length > maxLength ? '...' : '');
   };
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setConversations(deserializeConversations(parsed));
+      } catch {
+        setConversations([]);
+      }
+    }
+    const activeId = localStorage.getItem(ACTIVE_ID_KEY);
+    if (activeId) setActiveConversationId(activeId);
+    const storedEmail = localStorage.getItem(USER_EMAIL_KEY);
+    if (storedEmail) setUserEmail(storedEmail);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeConversations(conversations)));
+  }, [conversations]);
+
+  useEffect(() => {
+    if (activeConversationId) {
+      localStorage.setItem(ACTIVE_ID_KEY, activeConversationId);
+    } else {
+      localStorage.removeItem(ACTIVE_ID_KEY);
+    }
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    if (userEmail) {
+      localStorage.setItem(USER_EMAIL_KEY, userEmail);
+    } else {
+      localStorage.removeItem(USER_EMAIL_KEY);
+    }
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (activeConversationId && !conversations.some((c) => c.id === activeConversationId)) {
+      setActiveConversationId(null);
+    }
+  }, [activeConversationId, conversations]);
 
   const handleNewConversation = useCallback(() => {
     const newConversation: Conversation = {
@@ -49,81 +137,46 @@ export default function ChatApp() {
 
   const handleSendMessage = useCallback(
     async (text: string) => {
+      const userMessage: Message = {
+        id: generateId(),
+        text,
+        sender: 'user',
+        timestamp: new Date(),
+      };
+
       if (!activeConversationId) {
-        // If no active conversation, create one
         const newConversation: Conversation = {
           id: generateId(),
           title: generateTitle(text),
-          messages: [],
+          messages: [userMessage],
           createdAt: new Date(),
           updatedAt: new Date(),
         };
         setConversations((prev) => [newConversation, ...prev]);
         setActiveConversationId(newConversation.id);
-
-        // Add user message and simulate response
-        const userMessage: Message = {
-          id: generateId(),
-          text,
-          sender: 'user',
-          timestamp: new Date(),
-        };
-
-        const updatedConversation = {
-          ...newConversation,
-          messages: [userMessage],
-          title: generateTitle(text),
-        };
-        setConversations((prev) =>
-          prev.map((c) => (c.id === newConversation.id ? updatedConversation : c))
-        );
-
-        simulateAssistantResponse(
-          newConversation.id,
-          [userMessage],
-          updatedConversation.messages
-        );
+        simulateAssistantResponse(newConversation.id);
       } else {
-        // Add to existing conversation
-        const userMessage: Message = {
-          id: generateId(),
-          text,
-          sender: 'user',
-          timestamp: new Date(),
-        };
-
         const isFirstMessage = (activeConversation?.messages.length || 0) === 0;
-
         setConversations((prev) =>
           prev.map((c) => {
             if (c.id === activeConversationId) {
               return {
                 ...c,
                 messages: [...c.messages, userMessage],
-                title: isFirstMessage ? generateTitle(text) : c.title,
+                title: isFirstMessage || c.title === 'New Conversation' ? generateTitle(text) : c.title,
                 updatedAt: new Date(),
               };
             }
             return c;
           })
         );
-
-        const updatedMessages = [...(activeConversation?.messages || []), userMessage];
-        simulateAssistantResponse(
-          activeConversationId,
-          [userMessage],
-          updatedMessages
-        );
+        simulateAssistantResponse(activeConversationId);
       }
     },
     [activeConversationId, activeConversation]
   );
 
-  const simulateAssistantResponse = async (
-    conversationId: string,
-    newMessages: Message[],
-    allMessages: Message[]
-  ) => {
+  const simulateAssistantResponse = async (conversationId: string) => {
     setIsLoading(true);
     
     // Simulate API delay
@@ -144,7 +197,7 @@ export default function ChatApp() {
         if (c.id === conversationId) {
           return {
             ...c,
-            messages: [...allMessages, assistantMessage],
+            messages: [...c.messages, assistantMessage],
             updatedAt: new Date(),
           };
         }
@@ -166,6 +219,26 @@ export default function ChatApp() {
     }
   }, [activeConversationId]);
 
+  const handleAuthSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!authEmail.trim()) {
+        setAuthError('Please enter an email.');
+        return;
+      }
+      if (authPassword.length <= 6) {
+        setAuthError('Password must be more than 6 characters.');
+        return;
+      }
+      setUserEmail(authEmail.trim());
+      setAuthMode(null);
+      setAuthEmail('');
+      setAuthPassword('');
+      setAuthError('');
+    },
+    [authEmail, authPassword]
+  );
+
   return (
     <div className="flex h-screen bg-gray-900">
       {/* Sidebar */}
@@ -175,31 +248,92 @@ export default function ChatApp() {
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
         onDeleteConversation={handleDeleteConversation}
+        userEmail={userEmail}
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative">
         {activeConversation ? (
           <>
             {/* Chat Header */}
-            <div className="border-b border-gray-700 p-4 shadow-sm" style={{ backgroundColor: '#212121' }}>
-              <h1 className="text-xl font-semibold text-white">
-                {activeConversation.title}
-              </h1>
-              <p className="text-sm text-gray-400">
-                {activeConversation.messages.length} messages
-              </p>
+            <div
+              className="border-b border-gray-700 p-4 shadow-sm flex items-center justify-between"
+              style={{ backgroundColor: '#212121' }}
+            >
+              <div>
+                <h1 className="text-xl font-semibold text-white">
+                  {activeConversation.title}
+                </h1>
+                <p className="text-sm text-gray-400">
+                  {activeConversation.messages.length} messages
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {!userEmail ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setAuthMode('login');
+                        setAuthError('');
+                      }}
+                      className="px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm text-white border border-gray-700"
+                    >
+                      Login
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAuthMode('signup');
+                        setAuthError('');
+                      }}
+                      className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm text-white"
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-300">
+                    Signed in as {userEmail}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Chat Window */}
-            <ChatWindow messages={activeConversation.messages} />
+            <ChatWindow messages={activeConversation.messages} isLoading={isLoading} />
 
             {/* Chat Input */}
             <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#212121' }}>
-            <div className="text-center">
+          <div className="flex-1 flex flex-col" style={{ backgroundColor: '#212121' }}>
+            <div className="w-full flex justify-end gap-2 p-4">
+              {!userEmail ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setAuthMode('login');
+                      setAuthError('');
+                    }}
+                    className="px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm text-white border border-gray-700"
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAuthMode('signup');
+                      setAuthError('');
+                    }}
+                    className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm text-white"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              ) : (
+                <span className="text-sm text-gray-300">Signed in as {userEmail}</span>
+              )}
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
               <h1 className="text-4xl font-bold text-white mb-4">
                 Welcome to Chat
               </h1>
@@ -212,7 +346,56 @@ export default function ChatApp() {
               >
                 + New Chat
               </button>
+              </div>
             </div>
+          </div>
+        )}
+
+        {authMode && (
+          <div className="absolute top-16 right-6 w-full max-w-sm bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">
+                {authMode === 'login' ? 'Login' : 'Sign Up'}
+              </h2>
+              <button
+                onClick={() => setAuthMode(null)}
+                className="text-gray-400 hover:text-white"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder="At least 7 characters"
+                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                />
+              </div>
+              {authError && (
+                <div className="text-sm text-red-400">{authError}</div>
+              )}
+              <button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+              >
+                {authMode === 'login' ? 'Sign In' : 'Create Account'}
+              </button>
+            </form>
           </div>
         )}
       </div>
