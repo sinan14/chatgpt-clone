@@ -30,33 +30,38 @@ export default function ChatInput({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-[#212121] border-t border-gray-700 px-6 py-4">
-      <div className="max-w-4xl mx-auto flex gap-3">
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              if (input.trim()) {
-                onSendMessage(input);
-                setInput('');
+    <form onSubmit={handleSubmit} className="bg-transparent px-6 pb-6">
+      <div className="max-w-3xl mx-auto">
+        <div className="relative rounded-2xl bg-[#2a2a2a] border border-[#3a3a3a] shadow-[0_0_0_1px_rgba(0,0,0,0.2)]">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (input.trim()) {
+                  onSendMessage(input);
+                  setInput('');
+                }
               }
-            }
-          }}
-          placeholder="Type your message..."
-          disabled={isLoading}
-          className="flex-1 px-4 py-3 bg-gray-800 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-700 placeholder-gray-400 resize-none overflow-hidden"
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-        >
-          {isLoading ? 'Sending...' : 'Send'}
-        </button>
+            }}
+            placeholder="Ask anything"
+            disabled={isLoading}
+            className="w-full px-4 py-4 pr-14 bg-transparent text-white focus:outline-none disabled:opacity-70 placeholder-gray-400 resize-none overflow-hidden"
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white text-black disabled:bg-gray-500 disabled:text-gray-200 flex items-center justify-center transition-colors"
+            aria-label="Send message"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+              <path d="M12 5l7 7-1.4 1.4L13 8.8V19h-2V8.8L6.4 13.4 5 12z" />
+            </svg>
+          </button>
+        </div>
       </div>
     </form>
   );

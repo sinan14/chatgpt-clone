@@ -240,26 +240,25 @@ export default function ChatApp() {
   );
 
   return (
-    <div className="flex h-screen bg-gray-900">
+    <div className="flex h-screen bg-[#1f1f1f] text-white">
       {/* Sidebar */}
-      <Sidebar
-        conversations={conversations}
-        activeConversationId={activeConversationId}
-        onSelectConversation={handleSelectConversation}
-        onNewConversation={handleNewConversation}
-        onDeleteConversation={handleDeleteConversation}
-        userEmail={userEmail}
-      />
+      {!(conversations.length === 0 && !userEmail) && (
+        <Sidebar
+          conversations={conversations}
+          activeConversationId={activeConversationId}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+          onDeleteConversation={handleDeleteConversation}
+          userEmail={userEmail}
+        />
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative">
         {activeConversation ? (
           <>
             {/* Chat Header */}
-            <div
-              className="border-b border-gray-700 p-4 shadow-sm flex items-center justify-between"
-              style={{ backgroundColor: '#212121' }}
-            >
+            <div className="border-b border-[#2a2a2a] p-4 flex items-center justify-between bg-[#1f1f1f]">
               <div>
                 <h1 className="text-xl font-semibold text-white">
                   {activeConversation.title}
@@ -276,18 +275,18 @@ export default function ChatApp() {
                         setAuthMode('login');
                         setAuthError('');
                       }}
-                      className="px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm text-white border border-gray-700"
+                      className="px-3 py-2 rounded-full bg-white text-black hover:bg-gray-200 text-sm"
                     >
-                      Login
+                      Log in
                     </button>
                     <button
                       onClick={() => {
                         setAuthMode('signup');
                         setAuthError('');
                       }}
-                      className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm text-white"
+                      className="px-3 py-2 rounded-full bg-[#2a2a2a] hover:bg-[#333333] text-sm text-white border border-[#3a3a3a]"
                     >
-                      Sign Up
+                      Sign up for free
                     </button>
                   </>
                 ) : (
@@ -305,54 +304,47 @@ export default function ChatApp() {
             <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
           </>
         ) : (
-          <div className="flex-1 flex flex-col" style={{ backgroundColor: '#212121' }}>
-            <div className="w-full flex justify-end gap-2 p-4">
+          <div className="flex-1 flex flex-col bg-[#1f1f1f]">
+            <div className="w-full flex justify-between items-center p-4">
+              <div className="text-lg font-semibold text-white">ChatGPT</div>
               {!userEmail ? (
-                <>
+                <div className="flex gap-2">
                   <button
                     onClick={() => {
                       setAuthMode('login');
                       setAuthError('');
                     }}
-                    className="px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm text-white border border-gray-700"
+                    className="px-4 py-2 rounded-full bg-white text-black hover:bg-gray-200 text-sm"
                   >
-                    Login
+                    Log in
                   </button>
                   <button
                     onClick={() => {
                       setAuthMode('signup');
                       setAuthError('');
                     }}
-                    className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm text-white"
+                    className="px-4 py-2 rounded-full bg-[#2a2a2a] hover:bg-[#333333] text-sm text-white border border-[#3a3a3a]"
                   >
-                    Sign Up
+                    Sign up for free
                   </button>
-                </>
+                </div>
               ) : (
                 <span className="text-sm text-gray-300">Signed in as {userEmail}</span>
               )}
             </div>
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-              <h1 className="text-4xl font-bold text-white mb-4">
-                Welcome to Chat
-              </h1>
-              <p className="text-gray-400 mb-8">
-                Start a new conversation to begin chatting
-              </p>
-              <button
-                onClick={handleNewConversation}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
-              >
-                + New Chat
-              </button>
+              <div className="text-center w-full px-6">
+                <h1 className="text-3xl md:text-4xl font-semibold text-white mb-8">
+                  What can I help with?
+                </h1>
+                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
               </div>
             </div>
           </div>
         )}
 
         {authMode && (
-          <div className="absolute top-16 right-6 w-full max-w-sm bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-xl">
+          <div className="absolute top-16 right-6 w-full max-w-sm bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">
                 {authMode === 'login' ? 'Login' : 'Sign Up'}
@@ -362,7 +354,7 @@ export default function ChatApp() {
                 className="text-gray-400 hover:text-white"
                 aria-label="Close"
               >
-                ✕
+                x
               </button>
             </div>
             <form onSubmit={handleAuthSubmit} className="space-y-4">
@@ -373,7 +365,7 @@ export default function ChatApp() {
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                  className="w-full px-4 py-3 bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg focus:outline-none focus:ring-2 focus:ring-white text-white"
                 />
               </div>
               <div>
@@ -383,7 +375,7 @@ export default function ChatApp() {
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
                   placeholder="At least 7 characters"
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                  className="w-full px-4 py-3 bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg focus:outline-none focus:ring-2 focus:ring-white text-white"
                 />
               </div>
               {authError && (
@@ -391,7 +383,7 @@ export default function ChatApp() {
               )}
               <button
                 type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                className="w-full bg-white hover:bg-gray-200 text-black px-4 py-3 rounded-lg font-medium transition-colors"
               >
                 {authMode === 'login' ? 'Sign In' : 'Create Account'}
               </button>

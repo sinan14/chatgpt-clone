@@ -21,12 +21,12 @@ export default function Sidebar({
 }: SidebarProps) {
   const displayName = userEmail ? userEmail.split('@')[0] : 'Guest';
   return (
-    <div className="w-64 bg-gray-900 text-white flex flex-col h-screen">
+    <div className="w-64 bg-[#111111] text-white flex flex-col h-screen border-r border-[#1f1f1f]">
       {/* Header */}
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-4 border-b border-[#1f1f1f]">
         <button
           onClick={onNewConversation}
-          className="w-full bg-gray-800 hover:bg-gray-700 px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-[#1b1b1b] hover:bg-[#222222] px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-[#262626]"
         >
           <span>+</span>
           <span>New Chat</span>
@@ -39,14 +39,17 @@ export default function Sidebar({
           <div className="p-4 text-gray-400 text-sm">No conversations yet</div>
         ) : (
           <div className="p-2">
+            <div className="px-2 py-2 text-xs uppercase tracking-widest text-gray-500">
+              Your chats
+            </div>
             {conversations.map((conversation) => (
               <div
                 key={conversation.id}
                 onClick={() => onSelectConversation(conversation.id)}
                 className={`p-3 rounded-lg mb-2 cursor-pointer group relative ${
                   activeConversationId === conversation.id
-                    ? 'bg-gray-700'
-                    : 'hover:bg-gray-800'
+                    ? 'bg-[#222222]'
+                    : 'hover:bg-[#1b1b1b]'
                 } transition-colors`}
               >
                 <p className="text-sm truncate pr-8">{conversation.title}</p>
@@ -56,7 +59,7 @@ export default function Sidebar({
                     onDeleteConversation(conversation.id);
                   }}
                   aria-label="Delete conversation"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-red-600 hover:bg-red-700 p-1 rounded transition-all"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-[#3a1c1c] hover:bg-[#4a1f1f] p-1 rounded transition-all"
                   title="Delete conversation"
                 >
                   <svg
@@ -80,9 +83,9 @@ export default function Sidebar({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-[#1f1f1f]">
         <div className="flex items-center gap-3 text-sm">
-          <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center">
+          <div className="w-8 h-8 bg-[#1f1f1f] rounded-full flex items-center justify-center">
             👤
           </div>
           <span>{displayName}</span>
