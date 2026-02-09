@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Conversation, Message } from '../types/chat';
 import Sidebar from './Sidebar';
 import ChatWindow from './ChatWindow';
@@ -20,6 +20,22 @@ const dummyResponses = [
 const STORAGE_KEY = 'chatgpt_clone_conversations_v1';
 const ACTIVE_ID_KEY = 'chatgpt_clone_active_id_v1';
 const USER_EMAIL_KEY = 'chatgpt_clone_user_email_v1';
+const USER_NAME_KEY = 'chatgpt_clone_user_name_v1';
+const MODEL_OPTIONS = ['ChatGPT 5', 'GPT-4', 'GPT-5 mini'];
+const MODEL_VERSIONS: Record<string, string> = {
+  'ChatGPT 5': '5',
+  'GPT-4': '4',
+  'GPT-5 mini': '5.2',
+};
+const GPT_OPTIONS = [
+  'Audit',
+  'Tax',
+  'Tech consulting',
+  'Business consulting',
+  'forensic',
+  'SAP',
+  'ASSURANCE',
+];
 
 function generateId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -67,10 +83,17 @@ export default function ChatApp() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
+  const [authName, setAuthName] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [selectedModel, setSelectedModel] = useState(MODEL_OPTIONS[0]);
+  const [activeGptName, setActiveGptName] = useState<string | null>(null);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const modelMenuRef = useRef<HTMLDivElement | null>(null);
+  const [isGptExplorerOpen, setIsGptExplorerOpen] = useState(false);
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
@@ -95,6 +118,8 @@ export default function ChatApp() {
     if (activeId) setActiveConversationId(activeId);
     const storedEmail = localStorage.getItem(USER_EMAIL_KEY);
     if (storedEmail) setUserEmail(storedEmail);
+    const storedName = localStorage.getItem(USER_NAME_KEY);
+    if (storedName) setUserName(storedName);
   }, []);
 
   useEffect(() => {
@@ -116,6 +141,25 @@ export default function ChatApp() {
       localStorage.removeItem(USER_EMAIL_KEY);
     }
   }, [userEmail]);
+
+  useEffect(() => {
+    if (userName) {
+      localStorage.setItem(USER_NAME_KEY, userName);
+    } else {
+      localStorage.removeItem(USER_NAME_KEY);
+    }
+  }, [userName]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!modelMenuRef.current) return;
+      if (!modelMenuRef.current.contains(event.target as Node)) {
+        setIsModelMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (activeConversationId && !conversations.some((c) => c.id === activeConversationId)) {
@@ -219,9 +263,17 @@ export default function ChatApp() {
     }
   }, [activeConversationId]);
 
+  const handleSelectGpt = useCallback((name: string) => {
+    setActiveGptName(name);
+  }, []);
+
   const handleAuthSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+      if (authMode === 'signup' && !authName.trim()) {
+        setAuthError('Please enter your name.');
+        return;
+      }
       if (!authEmail.trim()) {
         setAuthError('Please enter an email.');
         return;
@@ -231,26 +283,87 @@ export default function ChatApp() {
         return;
       }
       setUserEmail(authEmail.trim());
+      if (authMode === 'signup') {
+        setUserName(authName.trim());
+      }
       setAuthMode(null);
+      setAuthName('');
       setAuthEmail('');
       setAuthPassword('');
       setAuthError('');
     },
-    [authEmail, authPassword]
+    [authEmail, authPassword, authMode, authName]
   );
 
   const handleLogout = useCallback(() => {
     setConversations([]);
     setActiveConversationId(null);
     setUserEmail(null);
+    setUserName(null);
     setAuthMode(null);
+    setAuthName('');
     setAuthEmail('');
     setAuthPassword('');
     setAuthError('');
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(ACTIVE_ID_KEY);
     localStorage.removeItem(USER_EMAIL_KEY);
+    localStorage.removeItem(USER_NAME_KEY);
   }, []);
+
+  const modelVersion = MODEL_VERSIONS[selectedModel] ?? selectedModel;
+  const modelLabel = activeGptName
+    ? `${activeGptName} 🔥 ${modelVersion}`
+    : selectedModel;
+  const signedInLabel = userName?.trim()
+    ? userName
+    : userEmail ?? 'Guest';
+
+  const renderModelSelector = () => (
+    <div className="relative" ref={modelMenuRef}>
+      <button
+        type="button"
+        onClick={() => setIsModelMenuOpen((open) => !open)}
+        className="flex items-center gap-2 text-sm text-white hover:text-gray-200"
+        aria-haspopup="menu"
+        aria-expanded={isModelMenuOpen}
+      >
+        <span className="font-semibold">{modelLabel}</span>
+        <svg
+          className={`w-4 h-4 transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`}
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <path
+            d="M6 9l6 6 6-6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {isModelMenuOpen && (
+        <div className="absolute left-0 mt-2 w-48 bg-[#1b1b1b] border border-[#2a2a2a] rounded-xl shadow-xl overflow-hidden z-20">
+              {MODEL_OPTIONS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => {
+                setSelectedModel(option);
+                setIsModelMenuOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-[#222222] ${
+                selectedModel === option ? 'text-white' : 'text-gray-300'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex h-screen bg-[#1f1f1f] text-white">
@@ -263,6 +376,11 @@ export default function ChatApp() {
           onNewConversation={handleNewConversation}
           onDeleteConversation={handleDeleteConversation}
           userEmail={userEmail}
+          userName={userName}
+          activeGptName={activeGptName}
+          onSelectGpt={handleSelectGpt}
+          gptOptions={GPT_OPTIONS}
+          onOpenGptExplorer={() => setIsGptExplorerOpen(true)}
           onLogout={handleLogout}
         />
       )}
@@ -273,14 +391,7 @@ export default function ChatApp() {
           <>
             {/* Chat Header */}
             <div className="border-b border-[#2a2a2a] p-4 flex items-center justify-between bg-[#1f1f1f]">
-              <div>
-                <h1 className="text-xl font-semibold text-white">
-                  {activeConversation.title}
-                </h1>
-                <p className="text-sm text-gray-400">
-                  {activeConversation.messages.length} messages
-                </p>
-              </div>
+              <div className="flex flex-col gap-2">{renderModelSelector()}</div>
               <div className="flex items-center gap-2">
                 {!userEmail ? (
                   <>
@@ -305,7 +416,7 @@ export default function ChatApp() {
                   </>
                 ) : (
                   <span className="text-sm text-gray-300">
-                    Signed in as {userEmail}
+                    Signed in as {signedInLabel}
                   </span>
                 )}
               </div>
@@ -320,7 +431,7 @@ export default function ChatApp() {
         ) : (
           <div className="flex-1 flex flex-col bg-[#1f1f1f]">
             <div className="w-full flex justify-between items-center p-4">
-              <div className="text-lg font-semibold text-white">ChatGPT</div>
+              {renderModelSelector()}
               {!userEmail ? (
                 <div className="flex gap-2">
                   <button
@@ -343,7 +454,7 @@ export default function ChatApp() {
                   </button>
                 </div>
               ) : (
-                <span className="text-sm text-gray-300">Signed in as {userEmail}</span>
+                <span className="text-sm text-gray-300">Signed in as {signedInLabel}</span>
               )}
             </div>
             <div className="flex-1 flex items-center justify-center">
@@ -372,6 +483,18 @@ export default function ChatApp() {
               </button>
             </div>
             <form onSubmit={handleAuthSubmit} className="space-y-4">
+              {authMode === 'signup' && (
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    placeholder="Your name"
+                    className="w-full px-4 py-3 bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg focus:outline-none focus:ring-2 focus:ring-white text-white"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Email</label>
                 <input
@@ -402,6 +525,43 @@ export default function ChatApp() {
                 {authMode === 'login' ? 'Sign In' : 'Create Account'}
               </button>
             </form>
+          </div>
+        )}
+
+        {isGptExplorerOpen && (
+          <div className="absolute inset-0 z-30 bg-black/60 flex items-center justify-center">
+            <div className="w-full max-w-2xl mx-6 bg-[#1b1b1b] border border-[#2a2a2a] rounded-2xl shadow-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-white">Explore GPTs</h2>
+                <button
+                  type="button"
+                  onClick={() => setIsGptExplorerOpen(false)}
+                  className="text-gray-400 hover:text-white"
+                  aria-label="Close"
+                >
+                  x
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {GPT_OPTIONS.map((gpt) => (
+                  <button
+                    key={gpt}
+                    type="button"
+                    onClick={() => {
+                      setActiveGptName(gpt);
+                      setIsGptExplorerOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
+                      activeGptName === gpt
+                        ? 'bg-[#222222] border-[#333333] text-white'
+                        : 'bg-[#141414] border-[#252525] text-gray-300 hover:bg-[#1f1f1f]'
+                    }`}
+                  >
+                    {gpt}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

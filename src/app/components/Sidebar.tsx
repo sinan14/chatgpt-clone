@@ -10,6 +10,11 @@ interface SidebarProps {
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
   userEmail: string | null;
+  userName: string | null;
+  activeGptName: string | null;
+  onSelectGpt: (name: string) => void;
+  gptOptions: string[];
+  onOpenGptExplorer: () => void;
   onLogout: () => void;
 }
 
@@ -20,11 +25,24 @@ export default function Sidebar({
   onNewConversation,
   onDeleteConversation,
   userEmail,
+  userName,
+  activeGptName,
+  onSelectGpt,
+  gptOptions,
+  onOpenGptExplorer,
   onLogout,
 }: SidebarProps) {
-  const displayName = userEmail ? userEmail.split('@')[0] : 'Guest';
+  const displayName = userName?.trim()
+    ? userName
+    : userEmail
+    ? userEmail.split('@')[0]
+    : 'Guest';
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const visibleGpts = gptOptions.slice(0, 3);
+  const accountLabel = userName?.trim()
+    ? userName
+    : userEmail ?? 'guest@chatgpt.local';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -47,6 +65,44 @@ export default function Sidebar({
         >
           <span>+</span>
           <span>New Chat</span>
+        </button>
+      </div>
+
+      {/* GPTs Section */}
+      <div className="p-3 border-b border-[#1f1f1f]">
+        <div className="px-2 py-2 text-xs uppercase tracking-widest text-gray-500">
+          GPTs
+        </div>
+        <div className="space-y-1">
+          {visibleGpts.map((gpt) => (
+            <button
+              key={gpt}
+              type="button"
+              onClick={() => onSelectGpt(gpt)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                activeGptName === gpt
+                  ? 'bg-[#222222] text-white'
+                  : 'text-gray-300 hover:bg-[#1b1b1b]'
+              }`}
+            >
+              {gpt}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onOpenGptExplorer}
+          className="w-full mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-[#1b1b1b]"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M4 12h16M12 4v16"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span>Explore GPTs</span>
         </button>
       </div>
 
@@ -120,7 +176,7 @@ export default function Sidebar({
                   strokeLinecap="round"
                 />
               </svg>
-              <span className="truncate">{userEmail ?? 'guest@chatgpt.local'}</span>
+              <span className="truncate">{accountLabel}</span>
             </div>
             <button
               type="button"
