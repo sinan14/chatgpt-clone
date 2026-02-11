@@ -1,37 +1,25 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Conversation } from '../types/chat';
+import { useAppState } from '../providers/AppStateProvider';
 
-interface SidebarProps {
-  conversations: Conversation[];
-  activeConversationId: string | null;
-  onSelectConversation: (id: string) => void;
-  onNewConversation: () => void;
-  onDeleteConversation: (id: string) => void;
-  userEmail: string | null;
-  userName: string | null;
-  activeGptName: string | null;
-  onSelectGpt: (name: string) => void;
-  gptOptions: string[];
-  onOpenGptExplorer: () => void;
-  onLogout: () => void;
-}
-
-export default function Sidebar({
-  conversations,
-  activeConversationId,
-  onSelectConversation,
-  onNewConversation,
-  onDeleteConversation,
-  userEmail,
-  userName,
-  activeGptName,
-  onSelectGpt,
-  gptOptions,
-  onOpenGptExplorer,
-  onLogout,
-}: SidebarProps) {
+export default function Sidebar() {
+  const {
+    conversations,
+    activeConversationId,
+    activeWorkspaceId,
+    userEmail,
+    userName,
+    activeGptName,
+    gptOptions,
+    setIsGptExplorerOpen,
+    setCurrentView,
+    createConversation,
+    deleteConversation,
+    selectConversation,
+    setActiveGptName,
+    logout,
+  } = useAppState();
   const displayName = userName?.trim()
     ? userName
     : userEmail
@@ -43,6 +31,10 @@ export default function Sidebar({
   const accountLabel = userName?.trim()
     ? userName
     : userEmail ?? 'guest@chatgpt.local';
+  const isWorkspaceSelected = Boolean(activeWorkspaceId);
+  const visibleConversations = activeWorkspaceId
+    ? conversations.filter((c) => c.workspaceId === activeWorkspaceId)
+    : [];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -60,11 +52,44 @@ export default function Sidebar({
       {/* Header */}
       <div className="p-4 border-b border-[#1f1f1f]">
         <button
-          onClick={onNewConversation}
-          className="w-full bg-[#1b1b1b] hover:bg-[#222222] px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-[#262626]"
+          onClick={createConversation}
+          disabled={!isWorkspaceSelected}
+          className="w-full bg-[#1b1b1b] hover:bg-[#222222] px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-[#262626] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <span>+</span>
           <span>New Chat</span>
+        </button>
+        {!isWorkspaceSelected && (
+          <div className="mt-2 text-xs text-amber-300">
+            Select an EY workspace to start.
+          </div>
+        )}
+      </div>
+
+      {/* Workspace Link */}
+      <div className="p-3 border-b border-[#1f1f1f]">
+        <div className="px-2 py-2 text-xs uppercase tracking-widest text-gray-500">
+          Workspace
+        </div>
+        <button
+          type="button"
+          onClick={() => setCurrentView('workspaces')}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-[#1b1b1b]"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M4 6.5C4 5.12 5.12 4 6.5 4h11c1.38 0 2.5 1.12 2.5 2.5v11c0 1.38-1.12 2.5-2.5 2.5h-11C5.12 20 4 18.88 4 17.5v-11Z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M7.5 8.5h9M7.5 12h9M7.5 15.5h6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span>Workspaces</span>
         </button>
       </div>
 
@@ -78,7 +103,7 @@ export default function Sidebar({
             <button
               key={gpt}
               type="button"
-              onClick={() => onSelectGpt(gpt)}
+              onClick={() => setActiveGptName(gpt)}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                 activeGptName === gpt
                   ? 'bg-[#222222] text-white'
@@ -91,7 +116,7 @@ export default function Sidebar({
         </div>
         <button
           type="button"
-          onClick={onOpenGptExplorer}
+          onClick={() => setIsGptExplorerOpen(true)}
           className="w-full mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-[#1b1b1b]"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -108,17 +133,17 @@ export default function Sidebar({
 
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
-        {conversations.length === 0 ? (
+        {visibleConversations.length === 0 ? (
           <div className="p-4 text-gray-400 text-sm">No conversations yet</div>
         ) : (
           <div className="p-2">
             <div className="px-2 py-2 text-xs uppercase tracking-widest text-gray-500">
               Your chats
             </div>
-            {conversations.map((conversation) => (
+            {visibleConversations.map((conversation) => (
               <div
                 key={conversation.id}
-                onClick={() => onSelectConversation(conversation.id)}
+                onClick={() => selectConversation(conversation.id)}
                 className={`p-3 rounded-lg mb-2 cursor-pointer group relative ${
                   activeConversationId === conversation.id
                     ? 'bg-[#222222]'
@@ -129,7 +154,7 @@ export default function Sidebar({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteConversation(conversation.id);
+                    deleteConversation(conversation.id);
                   }}
                   aria-label="Delete conversation"
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-[#3a1c1c] hover:bg-[#4a1f1f] p-1 rounded transition-all"
@@ -230,7 +255,7 @@ export default function Sidebar({
               className="w-full px-3 py-2 flex items-center gap-2 text-sm text-red-300 hover:bg-[#2a1d1d]"
               onClick={() => {
                 setIsUserMenuOpen(false);
-                onLogout();
+                logout();
               }}
             >
               <svg className="w-4 h-4 text-red-300" viewBox="0 0 24 24" fill="none">

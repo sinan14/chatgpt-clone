@@ -5,11 +5,15 @@ import { useEffect, useRef, useState } from 'react';
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   isLoading?: boolean;
+  isWorkspaceSelected?: boolean;
+  workspaceName?: string | null;
 }
 
 export default function ChatInput({
   onSendMessage,
   isLoading = false,
+  isWorkspaceSelected = true,
+  workspaceName = null,
 }: ChatInputProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -23,11 +27,16 @@ export default function ChatInput({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim()) {
+    if (input.trim() && isWorkspaceSelected) {
       onSendMessage(input);
       setInput('');
     }
   };
+
+  const isDisabled = isLoading || !isWorkspaceSelected;
+  const placeholder = isWorkspaceSelected
+    ? 'Ask anything'
+    : 'Select a workspace to start chatting';
 
   return (
     <form onSubmit={handleSubmit} className="bg-transparent px-6 pb-6">
@@ -41,19 +50,19 @@ export default function ChatInput({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                if (input.trim()) {
+                if (input.trim() && isWorkspaceSelected) {
                   onSendMessage(input);
                   setInput('');
                 }
               }
             }}
-            placeholder="Ask anything"
-            disabled={isLoading}
+            placeholder={placeholder}
+            disabled={isDisabled}
             className="w-full px-4 py-4 pr-14 bg-transparent text-white focus:outline-none disabled:opacity-70 placeholder-gray-400 resize-none overflow-hidden"
           />
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={isDisabled || !input.trim()}
             className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white text-black disabled:bg-gray-500 disabled:text-gray-200 flex items-center justify-center transition-colors"
             aria-label="Send message"
           >
@@ -62,6 +71,16 @@ export default function ChatInput({
             </svg>
           </button>
         </div>
+        {!isWorkspaceSelected && (
+          <div className="mt-2 text-xs text-amber-300">
+            Please select or create an EY workspace to send messages.
+          </div>
+        )}
+        {isWorkspaceSelected && workspaceName && (
+          <div className="mt-2 text-xs text-gray-400">
+            Workspace: {workspaceName}
+          </div>
+        )}
       </div>
     </form>
   );

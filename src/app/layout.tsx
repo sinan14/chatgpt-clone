@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AppShell from "./components/AppShell";
 
 export const metadata: Metadata = {
   title: "ChatGPT Clone",
@@ -12,8 +13,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="m-0 p-0">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="m-0 p-0" suppressHydrationWarning>
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

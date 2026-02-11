@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Conversation, Message } from '../types/chat';
-import Sidebar from './Sidebar';
+import { useAppState } from '../providers/AppStateProvider';
 import ChatWindow from './ChatWindow';
 import ChatInput from './ChatInput';
+import WorkspacesPanel from './WorkspacesPanel';
 
 // Dummy responses from AI
 const dummyResponses = [
@@ -17,25 +18,12 @@ const dummyResponses = [
   "I see what you're asking. The answer involves several key points.",
 ];
 
-const STORAGE_KEY = 'chatgpt_clone_conversations_v1';
-const ACTIVE_ID_KEY = 'chatgpt_clone_active_id_v1';
-const USER_EMAIL_KEY = 'chatgpt_clone_user_email_v1';
-const USER_NAME_KEY = 'chatgpt_clone_user_name_v1';
 const MODEL_OPTIONS = ['ChatGPT 5', 'GPT-4', 'GPT-5 mini'];
 const MODEL_VERSIONS: Record<string, string> = {
   'ChatGPT 5': '5',
   'GPT-4': '4',
   'GPT-5 mini': '5.2',
 };
-const GPT_OPTIONS = [
-  'Audit',
-  'Tax',
-  'Tech consulting',
-  'Business consulting',
-  'forensic',
-  'SAP',
-  'ASSURANCE',
-];
 
 function generateId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -44,111 +32,44 @@ function generateId() {
   return Math.random().toString(36).substring(2, 9);
 }
 
-function serializeConversations(conversations: Conversation[]) {
-  return conversations.map((c) => ({
-    ...c,
-    createdAt: c.createdAt.toISOString(),
-    updatedAt: c.updatedAt.toISOString(),
-    messages: c.messages.map((m) => ({
-      ...m,
-      timestamp: m.timestamp.toISOString(),
-    })),
-  }));
-}
-
-function deserializeConversations(raw: unknown): Conversation[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((c) => c && typeof c === 'object')
-    .map((c: any) => ({
-      id: String(c.id),
-      title: String(c.title ?? 'Conversation'),
-      createdAt: new Date(c.createdAt ?? Date.now()),
-      updatedAt: new Date(c.updatedAt ?? Date.now()),
-      messages: Array.isArray(c.messages)
-        ? c.messages.map((m: any) => ({
-            id: String(m.id),
-            text: String(m.text ?? ''),
-            sender: m.sender === 'assistant' ? 'assistant' : 'user',
-            timestamp: new Date(m.timestamp ?? Date.now()),
-          }))
-        : [],
-    }));
-}
-
 export default function ChatApp() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(
-    null
-  );
+  const {
+    conversations,
+    activeConversationId,
+    workspaces,
+    activeWorkspaceId,
+    userEmail,
+    userName,
+    activeGptName,
+    isGptExplorerOpen,
+    gptOptions,
+    currentView,
+    setActiveGptName,
+    setConversations,
+    setActiveConversationId,
+    setUserEmail,
+    setUserName,
+    setIsGptExplorerOpen,
+  } = useAppState();
   const [isLoading, setIsLoading] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
   const [authName, setAuthName] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [selectedModel, setSelectedModel] = useState(MODEL_OPTIONS[0]);
-  const [activeGptName, setActiveGptName] = useState<string | null>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const modelMenuRef = useRef<HTMLDivElement | null>(null);
-  const [isGptExplorerOpen, setIsGptExplorerOpen] = useState(false);
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
   );
+  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
 
   const generateTitle = (firstMessage: string) => {
     const maxLength = 30;
     return firstMessage.substring(0, maxLength) + (firstMessage.length > maxLength ? '...' : '');
   };
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setConversations(deserializeConversations(parsed));
-      } catch {
-        setConversations([]);
-      }
-    }
-    const activeId = localStorage.getItem(ACTIVE_ID_KEY);
-    if (activeId) setActiveConversationId(activeId);
-    const storedEmail = localStorage.getItem(USER_EMAIL_KEY);
-    if (storedEmail) setUserEmail(storedEmail);
-    const storedName = localStorage.getItem(USER_NAME_KEY);
-    if (storedName) setUserName(storedName);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeConversations(conversations)));
-  }, [conversations]);
-
-  useEffect(() => {
-    if (activeConversationId) {
-      localStorage.setItem(ACTIVE_ID_KEY, activeConversationId);
-    } else {
-      localStorage.removeItem(ACTIVE_ID_KEY);
-    }
-  }, [activeConversationId]);
-
-  useEffect(() => {
-    if (userEmail) {
-      localStorage.setItem(USER_EMAIL_KEY, userEmail);
-    } else {
-      localStorage.removeItem(USER_EMAIL_KEY);
-    }
-  }, [userEmail]);
-
-  useEffect(() => {
-    if (userName) {
-      localStorage.setItem(USER_NAME_KEY, userName);
-    } else {
-      localStorage.removeItem(USER_NAME_KEY);
-    }
-  }, [userName]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -161,26 +82,9 @@ export default function ChatApp() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (activeConversationId && !conversations.some((c) => c.id === activeConversationId)) {
-      setActiveConversationId(null);
-    }
-  }, [activeConversationId, conversations]);
-
-  const handleNewConversation = useCallback(() => {
-    const newConversation: Conversation = {
-      id: generateId(),
-      title: 'New Conversation',
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setConversations((prev) => [newConversation, ...prev]);
-    setActiveConversationId(newConversation.id);
-  }, []);
-
   const handleSendMessage = useCallback(
     async (text: string) => {
+      if (!activeWorkspaceId) return;
       const userMessage: Message = {
         id: generateId(),
         text,
@@ -193,6 +97,7 @@ export default function ChatApp() {
           id: generateId(),
           title: generateTitle(text),
           messages: [userMessage],
+          workspaceId: activeWorkspaceId,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -217,7 +122,7 @@ export default function ChatApp() {
         simulateAssistantResponse(activeConversationId);
       }
     },
-    [activeConversationId, activeConversation]
+    [activeConversationId, activeConversation, activeWorkspaceId]
   );
 
   const simulateAssistantResponse = async (conversationId: string) => {
@@ -252,21 +157,6 @@ export default function ChatApp() {
     setIsLoading(false);
   };
 
-  const handleSelectConversation = useCallback((id: string) => {
-    setActiveConversationId(id);
-  }, []);
-
-  const handleDeleteConversation = useCallback((id: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    if (activeConversationId === id) {
-      setActiveConversationId(null);
-    }
-  }, [activeConversationId]);
-
-  const handleSelectGpt = useCallback((name: string) => {
-    setActiveGptName(name);
-  }, []);
-
   const handleAuthSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -294,22 +184,6 @@ export default function ChatApp() {
     },
     [authEmail, authPassword, authMode, authName]
   );
-
-  const handleLogout = useCallback(() => {
-    setConversations([]);
-    setActiveConversationId(null);
-    setUserEmail(null);
-    setUserName(null);
-    setAuthMode(null);
-    setAuthName('');
-    setAuthEmail('');
-    setAuthPassword('');
-    setAuthError('');
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(ACTIVE_ID_KEY);
-    localStorage.removeItem(USER_EMAIL_KEY);
-    localStorage.removeItem(USER_NAME_KEY);
-  }, []);
 
   const modelVersion = MODEL_VERSIONS[selectedModel] ?? selectedModel;
   const modelLabel = activeGptName
@@ -365,28 +239,12 @@ export default function ChatApp() {
     </div>
   );
 
-  return (
-    <div className="flex h-screen bg-[#1f1f1f] text-white">
-      {/* Sidebar */}
-      {!(conversations.length === 0 && !userEmail) && (
-        <Sidebar
-          conversations={conversations}
-          activeConversationId={activeConversationId}
-          onSelectConversation={handleSelectConversation}
-          onNewConversation={handleNewConversation}
-          onDeleteConversation={handleDeleteConversation}
-          userEmail={userEmail}
-          userName={userName}
-          activeGptName={activeGptName}
-          onSelectGpt={handleSelectGpt}
-          gptOptions={GPT_OPTIONS}
-          onOpenGptExplorer={() => setIsGptExplorerOpen(true)}
-          onLogout={handleLogout}
-        />
-      )}
+  if (currentView === 'workspaces') {
+    return <WorkspacesPanel />;
+  }
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative">
+  return (
+    <div className="flex-1 flex flex-col relative">
         {activeConversation ? (
           <>
             {/* Chat Header */}
@@ -426,7 +284,12 @@ export default function ChatApp() {
             <ChatWindow messages={activeConversation.messages} isLoading={isLoading} />
 
             {/* Chat Input */}
-            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+            <ChatInput
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              isWorkspaceSelected={Boolean(activeWorkspaceId)}
+              workspaceName={activeWorkspace?.name ?? null}
+            />
           </>
         ) : (
           <div className="flex-1 flex flex-col bg-[#1f1f1f]">
@@ -462,7 +325,12 @@ export default function ChatApp() {
                 <h1 className="text-3xl md:text-4xl font-semibold text-white mb-8">
                   What can I help with?
                 </h1>
-                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+                <ChatInput
+                  onSendMessage={handleSendMessage}
+                  isLoading={isLoading}
+                  isWorkspaceSelected={Boolean(activeWorkspaceId)}
+                  workspaceName={activeWorkspace?.name ?? null}
+                />
               </div>
             </div>
           </div>
@@ -543,7 +411,7 @@ export default function ChatApp() {
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {GPT_OPTIONS.map((gpt) => (
+                {gptOptions.map((gpt) => (
                   <button
                     key={gpt}
                     type="button"
@@ -564,7 +432,7 @@ export default function ChatApp() {
             </div>
           </div>
         )}
+
       </div>
-    </div>
   );
 }
