@@ -19,6 +19,7 @@ const dummyResponses = [
 ];
 
 const MODEL_OPTIONS = ['ChatGPT 5', 'GPT-4', 'GPT-5 mini'];
+const CHAT_STYLE_OPTIONS = ['Fast', 'Thinking', 'Deep research'];
 const MODEL_VERSIONS: Record<string, string> = {
   'ChatGPT 5': '5',
   'GPT-4': '4',
@@ -48,18 +49,21 @@ export default function ChatApp() {
     setConversations,
     setActiveConversationId,
     setUserEmail,
-    setUserName,
     setIsGptExplorerOpen,
   } = useAppState();
   const [isLoading, setIsLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
-  const [authName, setAuthName] = useState('');
+  const [authMode, setAuthMode] = useState<'login' | null>(null);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [selectedModel, setSelectedModel] = useState(MODEL_OPTIONS[0]);
-  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
-  const modelMenuRef = useRef<HTMLDivElement | null>(null);
+  const [selectedChatStyle, setSelectedChatStyle] = useState(
+    CHAT_STYLE_OPTIONS[0]
+  );
+  const [isSelectionOpen, setIsSelectionOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const selectionMenuRef = useRef<HTMLDivElement | null>(null);
+  const helpMenuRef = useRef<HTMLDivElement | null>(null);
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
@@ -73,9 +77,12 @@ export default function ChatApp() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (!modelMenuRef.current) return;
-      if (!modelMenuRef.current.contains(event.target as Node)) {
-        setIsModelMenuOpen(false);
+      const target = event.target as Node;
+      if (selectionMenuRef.current && !selectionMenuRef.current.contains(target)) {
+        setIsSelectionOpen(false);
+      }
+      if (helpMenuRef.current && !helpMenuRef.current.contains(target)) {
+        setIsHelpOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -160,10 +167,6 @@ export default function ChatApp() {
   const handleAuthSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (authMode === 'signup' && !authName.trim()) {
-        setAuthError('Please enter your name.');
-        return;
-      }
       if (!authEmail.trim()) {
         setAuthError('Please enter an email.');
         return;
@@ -173,16 +176,12 @@ export default function ChatApp() {
         return;
       }
       setUserEmail(authEmail.trim());
-      if (authMode === 'signup') {
-        setUserName(authName.trim());
-      }
       setAuthMode(null);
-      setAuthName('');
       setAuthEmail('');
       setAuthPassword('');
       setAuthError('');
     },
-    [authEmail, authPassword, authMode, authName]
+    [authEmail, authPassword, authMode]
   );
 
   const modelVersion = MODEL_VERSIONS[selectedModel] ?? selectedModel;
@@ -193,18 +192,20 @@ export default function ChatApp() {
     ? userName
     : userEmail ?? 'Guest';
 
-  const renderModelSelector = () => (
-    <div className="relative" ref={modelMenuRef}>
+  const renderSelectionPopup = () => (
+    <div className="relative" ref={selectionMenuRef}>
       <button
         type="button"
-        onClick={() => setIsModelMenuOpen((open) => !open)}
+        onClick={() => setIsSelectionOpen((open) => !open)}
         className="flex items-center gap-2 text-sm text-white hover:text-gray-200"
-        aria-haspopup="menu"
-        aria-expanded={isModelMenuOpen}
+        aria-haspopup="dialog"
+        aria-expanded={isSelectionOpen}
       >
         <span className="font-semibold">{modelLabel}</span>
+        <span className="text-gray-500">•</span>
+        <span className="font-semibold">{selectedChatStyle}</span>
         <svg
-          className={`w-4 h-4 transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 transition-transform ${isSelectionOpen ? 'rotate-180' : ''}`}
           viewBox="0 0 24 24"
           fill="none"
         >
@@ -217,23 +218,42 @@ export default function ChatApp() {
           />
         </svg>
       </button>
-      {isModelMenuOpen && (
-        <div className="absolute left-0 mt-2 w-48 bg-[#1b1b1b] border border-[#2a2a2a] rounded-xl shadow-xl overflow-hidden z-20">
-              {MODEL_OPTIONS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                setSelectedModel(option);
-                setIsModelMenuOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-[#222222] ${
-                selectedModel === option ? 'text-white' : 'text-gray-300'
-              }`}
-            >
-              {option}
-            </button>
-          ))}
+      {isSelectionOpen && (
+        <div className="absolute left-0 mt-2 w-72 bg-[#1b1b1b] border border-[#2a2a2a] rounded-2xl shadow-xl overflow-hidden z-20 p-3">
+          <div className="text-xs uppercase tracking-wide text-gray-400 mb-2">
+            Model
+          </div>
+          <div className="space-y-1">
+            {MODEL_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSelectedModel(option)}
+                className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-[#222222] ${
+                  selectedModel === option ? 'text-white bg-[#222222]' : 'text-gray-300'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs uppercase tracking-wide text-gray-400 mt-4 mb-2">
+            Chat style
+          </div>
+          <div className="space-y-1">
+            {CHAT_STYLE_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSelectedChatStyle(option)}
+                className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-[#222222] ${
+                  selectedChatStyle === option ? 'text-white bg-[#222222]' : 'text-gray-300'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -249,7 +269,9 @@ export default function ChatApp() {
           <>
             {/* Chat Header */}
             <div className="border-b border-[#2a2a2a] p-4 flex items-center justify-between bg-[#1f1f1f]">
-              <div className="flex flex-col gap-2">{renderModelSelector()}</div>
+              <div className="flex items-center">
+                {renderSelectionPopup()}
+              </div>
               <div className="flex items-center gap-2">
                 {!userEmail ? (
                   <>
@@ -262,15 +284,23 @@ export default function ChatApp() {
                     >
                       Log in
                     </button>
-                    <button
-                      onClick={() => {
-                        setAuthMode('signup');
-                        setAuthError('');
-                      }}
-                      className="px-3 py-2 rounded-full bg-[#2a2a2a] hover:bg-[#333333] text-sm text-white border border-[#3a3a3a]"
-                    >
-                      Sign up for free
-                    </button>
+                    <div className="relative" ref={helpMenuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setIsHelpOpen((open) => !open)}
+                        className="px-3 py-2 rounded-full bg-[#2a2a2a] hover:bg-[#333333] text-sm text-white border border-[#3a3a3a]"
+                        aria-haspopup="dialog"
+                        aria-expanded={isHelpOpen}
+                        aria-label="Help"
+                      >
+                        ?
+                      </button>
+                      {isHelpOpen && (
+                        <div className="absolute right-0 mt-2 w-56 rounded-xl bg-[#1b1b1b] border border-[#2a2a2a] shadow-xl p-3 text-xs text-gray-300">
+                          Need access? Use your EY SSO or contact your IT admin.
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <span className="text-sm text-gray-300">
@@ -294,7 +324,9 @@ export default function ChatApp() {
         ) : (
           <div className="flex-1 flex flex-col bg-[#1f1f1f]">
             <div className="w-full flex justify-between items-center p-4">
-              {renderModelSelector()}
+              <div className="flex items-center">
+                {renderSelectionPopup()}
+              </div>
               {!userEmail ? (
                 <div className="flex gap-2">
                   <button
@@ -306,15 +338,23 @@ export default function ChatApp() {
                   >
                     Log in
                   </button>
-                  <button
-                    onClick={() => {
-                      setAuthMode('signup');
-                      setAuthError('');
-                    }}
-                    className="px-4 py-2 rounded-full bg-[#2a2a2a] hover:bg-[#333333] text-sm text-white border border-[#3a3a3a]"
-                  >
-                    Sign up for free
-                  </button>
+                  <div className="relative" ref={helpMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsHelpOpen((open) => !open)}
+                      className="px-4 py-2 rounded-full bg-[#2a2a2a] hover:bg-[#333333] text-sm text-white border border-[#3a3a3a]"
+                      aria-haspopup="dialog"
+                      aria-expanded={isHelpOpen}
+                      aria-label="Help"
+                    >
+                      ?
+                    </button>
+                    {isHelpOpen && (
+                      <div className="absolute right-0 mt-2 w-56 rounded-xl bg-[#1b1b1b] border border-[#2a2a2a] shadow-xl p-3 text-xs text-gray-300">
+                        Need access? Use your EY SSO or contact your IT admin.
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <span className="text-sm text-gray-300">Signed in as {signedInLabel}</span>
@@ -339,9 +379,7 @@ export default function ChatApp() {
         {authMode && (
           <div className="absolute top-16 right-6 w-full max-w-sm bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white">
-                {authMode === 'login' ? 'Login' : 'Sign Up'}
-              </h2>
+              <h2 className="text-lg font-semibold text-white">Login</h2>
               <button
                 onClick={() => setAuthMode(null)}
                 className="text-gray-400 hover:text-white"
@@ -351,18 +389,6 @@ export default function ChatApp() {
               </button>
             </div>
             <form onSubmit={handleAuthSubmit} className="space-y-4">
-              {authMode === 'signup' && (
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Name</label>
-                  <input
-                    type="text"
-                    value={authName}
-                    onChange={(e) => setAuthName(e.target.value)}
-                    placeholder="Your name"
-                    className="w-full px-4 py-3 bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg focus:outline-none focus:ring-2 focus:ring-white text-white"
-                  />
-                </div>
-              )}
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Email</label>
                 <input
@@ -390,7 +416,7 @@ export default function ChatApp() {
                 type="submit"
                 className="w-full bg-white hover:bg-gray-200 text-black px-4 py-3 rounded-lg font-medium transition-colors"
               >
-                {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                Sign In
               </button>
             </form>
           </div>

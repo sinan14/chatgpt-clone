@@ -40,7 +40,7 @@ export default function ChatWindow({ messages, isLoading = false }: ChatWindowPr
               <MessageBubble key={message.id} message={message} />
             ))}
             {isLoading && (
-              <div className="px-4 sm:px-8 lg:px-24 mb-6">
+              <div className="px-6 sm:px-12 lg:px-32 mb-6">
                 <div className="text-sm text-gray-400 italic">Thinking...</div>
               </div>
             )}

@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 interface MultiSelectProps {
   id: string;
   label: string;
+  required?: boolean;
   placeholder: string;
   options: string[];
   value: string[];
@@ -16,6 +17,7 @@ interface MultiSelectProps {
 export default function MultiSelect({
   id,
   label,
+  required = false,
   placeholder,
   options,
   value,
@@ -49,7 +51,9 @@ export default function MultiSelect({
 
   return (
     <div className="relative" ref={containerRef}>
-      <label className="block text-sm text-gray-300 mb-1">{label}</label>
+      <label className="block text-sm text-gray-300 mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
       <button
         type="button"
         onClick={() => setOpenId(isOpen ? null : id)}

@@ -36,10 +36,13 @@ function generateId() {
 export default function WorkspacesPanel() {
   const {
     workspaces,
+    conversations,
     setWorkspaces,
     activeWorkspaceId,
     setActiveWorkspaceId,
     setCurrentView,
+    userName,
+    userEmail,
   } = useAppState();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [workspaceError, setWorkspaceError] = useState('');
@@ -123,12 +126,23 @@ export default function WorkspacesPanel() {
   return (
     <div className="min-h-screen bg-[#1f1f1f] text-white">
       <div className="max-w-6xl mx-auto px-6 py-10">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-white">Workspaces</h1>
-            <p className="text-sm text-gray-400 mt-2 max-w-2xl">
-              Organize, collaborate, and engage with teams and agents in one unified workspace.
-            </p>
+          <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-sm mb-4">
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('chat')}
+                  className="px-3 py-1 rounded-full bg-[#1b1b1b] border border-[#2a2a2a] text-gray-200 hover:bg-[#222222]"
+                >
+                  Home
+                </button>
+                <span className="text-gray-500">/</span>
+                <span className="text-gray-300">Workspaces</span>
+              </div>
+              <h1 className="text-3xl font-semibold text-white">Workspaces</h1>
+              <p className="text-sm text-gray-400 mt-2 max-w-2xl">
+                Organize, collaborate, and engage with teams and agents in one unified workspace.
+              </p>
             <div className="mt-10 flex flex-col md:flex-row gap-3 items-start md:items-center">
               <div className="relative inline-block">
                 <button
@@ -235,26 +249,33 @@ export default function WorkspacesPanel() {
             filteredWorkspaces.map((ws) => (
               <div
                 key={ws.id}
-                className="bg-[#151515] border border-[#2a2a2a] rounded-2xl p-5 flex flex-col gap-3"
+                onClick={() => handleViewWorkspace(ws.id)}
+                className="bg-[#151515] border border-[#2a2a2a] rounded-2xl flex flex-col cursor-pointer hover:border-[#3a3a3a] transition-colors"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-white">{ws.name}</h2>
-                    <p className="text-sm text-gray-400">
-                      EY - {ws.location} - {ws.areas.join(', ') || 'Global'} - {ws.role}
-                    </p>
+                <div className="px-5 pt-5 pb-4 border-b-2 border-[#2f2f2f]">
+                  <h2 className="text-lg font-semibold text-white">{ws.name}</h2>
+                </div>
+                <div className="px-5 py-4 border-b-2 border-[#2f2f2f] flex flex-col gap-2">
+                  <p className="text-sm text-gray-300">{ws.description}</p>
+                  <div className="text-xs text-gray-500">
+                    Service lines: {ws.serviceLines.join(', ') || '--'}
                   </div>
+                  <div className="text-xs text-emerald-300 mt-2">{ws.role}</div>
+                </div>
+                <div className="px-5 py-4 flex items-end justify-between">
                   <button
                     type="button"
-                    onClick={() => handleViewWorkspace(ws.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewWorkspace(ws.id);
+                    }}
                     className="px-3 py-2 rounded-lg bg-[#2a2a2a] hover:bg-[#333333] text-sm text-white"
                   >
                     View
                   </button>
-                </div>
-                <p className="text-sm text-gray-300">{ws.description}</p>
-                <div className="text-xs text-gray-500">
-                  Service lines: {ws.serviceLines.join(', ') || '--'}
+                  <div className="text-right text-xs text-gray-400">
+                    {conversations.filter((c) => c.workspaceId === ws.id).length} chats
+                  </div>
                 </div>
               </div>
             ))
@@ -282,7 +303,9 @@ export default function WorkspacesPanel() {
             <form onSubmit={handleCreateWorkspace} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Workspace name</label>
+                  <label className="block text-sm text-gray-300 mb-1">
+                    Workspace name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={form.name}
@@ -293,7 +316,7 @@ export default function WorkspacesPanel() {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-300 mb-1">
-                    Workspace location
+                    Workspace location <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={form.location}
@@ -315,7 +338,9 @@ export default function WorkspacesPanel() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Description</label>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Description <span className="text-red-500">*</span>
+                </label>
                 <textarea
                   rows={3}
                   value={form.description}
@@ -331,6 +356,7 @@ export default function WorkspacesPanel() {
                 <MultiSelect
                   id="service-lines"
                   label="Service line"
+                  required
                   placeholder="Select service line"
                   options={SERVICE_LINES}
                   value={form.serviceLines}
@@ -341,6 +367,7 @@ export default function WorkspacesPanel() {
                 <MultiSelect
                   id="sub-service-lines"
                   label="Sub service line"
+                  required
                   placeholder="Select sub service line"
                   options={SUB_SERVICE_LINES}
                   value={form.subServiceLines}
@@ -351,6 +378,7 @@ export default function WorkspacesPanel() {
                 <MultiSelect
                   id="sectors"
                   label="Sector"
+                  required
                   placeholder="Select sector"
                   options={SECTORS}
                   value={form.sectors}
@@ -364,6 +392,7 @@ export default function WorkspacesPanel() {
                 <MultiSelect
                   id="areas"
                   label="Area"
+                  required
                   placeholder="Select area"
                   options={AREAS}
                   value={form.areas}
@@ -374,6 +403,7 @@ export default function WorkspacesPanel() {
                 <MultiSelect
                   id="countries"
                   label="Country"
+                  required
                   placeholder="Select country"
                   options={COUNTRIES}
                   value={form.countries}
